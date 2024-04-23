@@ -1,0 +1,62 @@
+@page "/"
+@inject FormSubmissionService FormSubmissionService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Login</PageTitle>
+<div class="toast-container">
+    @if (showToast)
+    {
+        <div class="toast show">@toastMessage</div>
+    }
+</div>
+<form id="demo-form" @onsubmit="HandleOnSubmit">
+    <fieldset id="demo-fieldset">
+        <div class="demo-label">Email</div>
+        <input class="demo-form-input" name="email" type="text" @bind="formData.Email" autocomplete="off">
+        <div class="demo-label">Password</div>
+        <input class="demo-form-input" name="password" type="password" @bind="formData.Password" autocomplete="off">
+        <div style="margin-top:20px"></div>
+        <!-- Div to place the Captcha -->
+        <div id="someMTCaptchaID" class="mtcaptcha"></div>
+        <button @onclick="VerifyMTCaptcha">Verify</button>
+    </fieldset>
+</form>
+
+@code {
+    private LoginForm formData = new LoginForm();
+
+    private bool showToast = false;
+    private string toastMessage = "";
+
+    private void ShowToast(string message)
+    {
+        toastMessage = message;
+        showToast = true;
+        StateHasChanged(); // Trigger UI update
+        Task.Delay(3000).ContinueWith(t =>
+        {
+            showToast = false;
+            StateHasChanged(); // Ensure this runs on the correct synchronization context
+        }, TaskScheduler.FromCurrentSynchronizationContext()); // Ensures the UI update is on the main thread
+    }
+
+    private async Task VerifyMTCaptcha()
+    {
+        var token = await JSRuntime.InvokeAsync<string>("getMTCaptchaToken", "someMTCaptchaID");
+        bool isSubmissionSuccessful = await FormSubmissionService.SubmitLoginFormAsync(formData, token);
+        if (isSubmissionSuccessful)
+        {
+            ShowToast("Form submitted and validated successfully.");
+        }
+        else
+        {
+            ShowToast("MTCAPTCHA validation or user authentication failed. Please try again.");
+        }
+    }
+
+    private Task HandleOnSubmit()
+    {
+        return Task.CompletedTask; // Prevent actual form submission
+    }
+}
